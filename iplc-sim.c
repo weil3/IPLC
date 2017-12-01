@@ -183,7 +183,25 @@ void iplc_sim_init(int index, int blocksize, int assoc)
  */
 void iplc_sim_LRU_replace_on_miss(int index, int tag)
 {
-    /* You must implement this function */
+    int set_begin = index * cache_assoc;
+
+    int i;
+    for(i = set_begin; i < set_begin + cache_assoc; i++){
+        if(!cache[i].valid){
+            cache[i].tag = tag;
+            cache[i].valid = 1;
+            iplc_sim_LRU_update_on_hit(index, i);
+            return;
+        }
+    }
+
+    for(i = set_begin; i < set_begin + cache_assoc; i++){
+        if(cache[i].lru == 0){
+            cache[i].tag = tag;
+            cache[i].valid = 1;
+            iplc_sim_LRU_update_on_hit(index, i);
+        }
+    }
 }
 
 /*
@@ -192,7 +210,19 @@ void iplc_sim_LRU_replace_on_miss(int index, int tag)
  */
 void iplc_sim_LRU_update_on_hit(int index, int assoc_entry)
 {
-    /* You must implement this function */
+    int set_begin = index * cache_assoc;
+    
+    int i;
+    for(i = 0; i < cache_assoc; i++){
+        int j;
+        for(j = set_begin; j < set_begin + cache_assoc; j++){
+            if((i - cache_assoc) == cache[j]){
+                cache[j].lru--;
+                break;
+            }
+        }
+    }
+    cache[assoc_entry].lru = cache_assoc;
 }
 
 /*
@@ -227,13 +257,13 @@ int iplc_sim_trap_address(unsigned int address)
 	tag = bit_twiddling(address, cache_index+cache_blockoffsetbits+1, 32);
 
 	int i; 
-	for (i = blockoffset*cache_blocksize+cache_assoc; i < blockoffset*cache_blocksize+cache_assoc + assoc;i++) {
+	for (i = cache_assoc * index; i < cache_assoc * index + assoc;i++) {
 		if (tag == cache[i].tag) {
 			hit = 1;
 		}
 	}
  	if (hit = 1) {
-		iplc_sim_LRU_update_on_hit(index, i-blockoffset*cache_blocksize+cache_assoc);
+		iplc_sim_LRU_update_on_hit(index, i);
 	} else {
 		iplc_sim_LRU_replace_on_miss(index, tag);
 	}
