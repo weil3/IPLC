@@ -39,12 +39,10 @@ void iplc_sim_finalize();
 
 typedef struct cache_line
 {
-    // Your data structures for implementing your cache should include:
     int valid; // a valid bit
     int tag; // a tag
     int assoc; // a method for handling varying levels of associativity
     int lru; // a method for selecting which item in the cache is going to be replaced
-
 } cache_line_t;
 
 cache_line_t *cache=NULL;
@@ -168,6 +166,10 @@ void iplc_sim_init(int index, int blocksize, int assoc)
     
     // Dynamically create our cache based on the information the user entered
     for (i = 0; i < (1<<index); i++) {
+        cache[i].valid = 0;
+        cache[i].tag = 0;
+        cache[i].assoc = 0;
+        cache[i].lru = 0;
     }
     
     // init the pipeline -- set all data to zero and instructions to NOP
@@ -201,20 +203,6 @@ void iplc_sim_LRU_update_on_hit(int index, int assoc_entry)
  * associativity we may need to check through multiple entries for our
  * desired index.  In that case we will also need to call the LRU functions.
  */
-
-int bit_twiddling(int val, int lsb, int msb)
-{
-    int i;
-    int range = msb - lsb+1;
-    int mask;
-    mask = (1 << range) - 1;
-    mask = mask << lsb;
-    mask = mask & val;
-    mask = mask >> lsb;
-
-    return mask;
-}
-
 int iplc_sim_trap_address(unsigned int address)
 {
     int i=0, index=0;
@@ -222,21 +210,20 @@ int iplc_sim_trap_address(unsigned int address)
     int hit=0;
     int blockoffset = 0;
     // Call the appropriate function for a miss or hit
-	blockoffset = bit_twiddling(address, 0, cache_blockoffsetbits);
-	index = bit_twiddling(address, cache_blockoffsetbits+1, cache_index + cache_blockoffsetbits);
-	tag = bit_twiddling(address, cache_index+cache_blockoffsetbits+1, 32);
-
-	int i; 
-	for (i = blockoffset*cache_blocksize+cache_assoc; i < blockoffset*cache_blocksize+cache_assoc + assoc;i++) {
-		if (tag == cache[i].tag) {
-			hit = 1;
-		}
-	}
- 	if (hit = 1) {
-		iplc_sim_LRU_update_on_hit(index, i-blockoffset*cache_blocksize+cache_assoc);
-	} else {
-		iplc_sim_LRU_replace_on_miss(index, tag);
-	}
+    blockoffset = bit_twiddling(address, 0, cache_blockoffsetbits);
+    index = bit_twiddling(address, cache_blockoffsetbits+1, cache_index + cache_blockoffsetbits);
+    tag = bit_twiddling(address, cache_index+cache_blockoffsetbits+1, 32);
+    
+    for (i = blockoffset*cache_blocksize+cache_assoc; i < blockoffset*cache_blocksize+cache_assoc + cache_assoc;i++) {
+        if (tag == cache[i].tag) {
+            hit = 1;
+        }
+    }
+    if (hit == 1) {
+        iplc_sim_LRU_update_on_hit(index, i-blockoffset*cache_blocksize+cache_assoc);
+    } else {
+        iplc_sim_LRU_replace_on_miss(index, tag);
+    }
     /* expects you to return 1 for hit, 0 for miss */
     return hit;
 }
