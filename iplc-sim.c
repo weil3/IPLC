@@ -345,9 +345,9 @@ void iplc_sim_push_pipeline_stage()
 	/*    if(pipeline[FETCH].instruction_address == pipeline[DECODE].instruction_address+1){ //Was Taken
             branch_taken = 1;*/
         if (pipeline[FETCH].instruction_address) {
-      if (pipeline[DECODE].instruction_address + 4 !=
+      if (pipeline[DECODE].instruction_address + 4 !=    //branch is taken if it's 4 bytes larger
           pipeline[FETCH].instruction_address) {branch_taken = 1; }
-      if (branch_taken != branch_predict_taken) { //if branch prediction is not correct, add cycles
+      if (branch_taken != branch_predict_taken) { //if branch prediction is not correct, cycles+1
         pipeline_cycles++;
       } else {correct_branch_predictions++;}
     }
@@ -360,18 +360,16 @@ void iplc_sim_push_pipeline_stage()
     int inserted_nop = 0;
     data_hit = iplc_sim_trap_address(pipeline[MEM].stage.lw.data_address);
     if (data_hit == 0) {
-      printf("DATA MISS:\t Address 0x%x \n", data_address);
-      // check whether there is a dependent RTYPE in the ALU stage that depends on the item being loaded 
-	    //and add 1 to inserted_nop if it's yes.
-      if (pipeline[ALU].itype == RTYPE&&(pipeline[ALU].stage.rtype.reg2_or_constant ==
-          pipeline[MEM].stage.lw.dest_reg||pipeline[ALU].stage.rtype.reg1 == pipeline[MEM].stage.lw.dest_reg)) {
-          inserted_nop=1;
+      printf("DATA MISS:\t Address 0x%x \n", data_address); 
+	    
+      if (pipeline[ALU].itype == RTYPE&&
+	  (pipeline[ALU].stage.rtype.reg2_or_constant == pipeline[MEM].stage.lw.dest_reg
+	   ||pipeline[ALU].stage.rtype.reg1 == pipeline[MEM].stage.lw.dest_reg)) {
+          inserted_nop++;  //Add 1 to inserted_nop if there is a dependent RTYPE in the ALU stage.
       }
       // If inserted_nop is 1, insert a NOP instruction.
       if (inserted_nop == 1) {
-        
-        
-        
+   
         pipeline[MEM].instruction_address = 0x0;
 	pipeline[MEM].itype = NOP;
 	pipeline[WRITEBACK] = pipeline[MEM];
@@ -397,7 +395,7 @@ void iplc_sim_push_pipeline_stage()
   }
 
   /* 5. Increment pipe_cycles 1 cycle for normal processing */
-  pipeline_cycles+=1;
+  pipeline_cycles++;
 
   /* 6. push stages thru MEM->WB, ALU->MEM, DECODE->ALU, FETCH->ALU */
   memcpy(&pipeline[WRITEBACK], &pipeline[MEM], sizeof(pipeline_t));
