@@ -340,29 +340,73 @@ void iplc_sim_push_pipeline_stage()
     
     /* 2. Check for BRANCH and correct/incorrect Branch Prediction */
     if (pipeline[DECODE].itype == BRANCH) {
+	    branch_count++;
         int branch_taken = 0;
-	    if(pipeline[FETCH].instruction_address == pipeline[DECODE].instruction_address+1){ //Was Taken
-            branch_taken = 1;
-        }
+	/*    if(pipeline[FETCH].instruction_address == pipeline[DECODE].instruction_address+1){ //Was Taken
+            branch_taken = 1;*/
+        if (pipeline[FETCH].instruction_address) {
+      if (pipeline[DECODE].instruction_address + 4 !=
+          pipeline[FETCH].instruction_address) {branch_taken = 1; }
+      if (branch_taken != branch_predict_taken) { //if branch prediction is not correct, add cycles
+        pipeline_cycles++;
+      } else {correct_branch_predictions++;}
     }
+  }
     
     /* 3. Check for LW delays due to use in ALU stage and if data hit/miss
-     *    add delay cycles if needed.
-     */
-    if (pipeline[MEM].itype == LW) {
-        int inserted_nop = 0;
-    }
+   *    add delay cycles if needed.
+   */
+  if (pipeline[MEM].itype == LW) {
+    int inserted_nop = 0;
+    data_hit = iplc_sim_trap_address(pipeline[MEM].stage.lw.data_address);
+    if (data_hit == 0) {
+      printf("DATA MISS:\t Address 0x%x \n", data_address);
+      // check whether there is a dependent RTYPE in the ALU stage that depends on the item being loaded 
+	    //and add 1 to inserted_nop if it's yes.
+      if (pipeline[ALU].itype == RTYPE&&(pipeline[ALU].stage.rtype.reg2_or_constant ==
+          pipeline[MEM].stage.lw.dest_reg||pipeline[ALU].stage.rtype.reg1 == pipeline[MEM].stage.lw.dest_reg)) {
+          inserted_nop=1;
+      }
+      // If inserted_nop is 1, insert a NOP instruction.
+      if (inserted_nop == 1) {
+        
+        
+        
+        pipeline[MEM].instruction_address = 0x0;
+	pipeline[MEM].itype = NOP;
+	pipeline[WRITEBACK] = pipeline[MEM];
+	instruction_count++;
+        if (pipeline[WRITEBACK].instruction_address) {
+          if (debug)
+            printf("DEBUG: Retired Instruction at 0x%x, Type %d, at Time %u \n",
+                   pipeline[WRITEBACK].instruction_address,
+                   pipeline[WRITEBACK].itype, pipeline_cycles + inserted_nop);
+        }
+      }
+      pipeline_cycles += 9;//stall penalty
+    }else{ printf("DATA HIT:\t Address 0x%x \n", data_address);}
+  }
     
     /* 4. Check for SW mem acess and data miss .. add delay cycles if needed */
-    if (pipeline[MEM].itype == SW) {
+  if (pipeline[MEM].itype == SW) {
+    data_hit = iplc_sim_trap_address(pipeline[MEM].stage.sw.data_address);
+    if (!data_hit) {
+      printf("DATA MISS:\t Address 0x%x \n", data_address);
+	pipeline_cycles += 9;
     }
-    
-    /* 5. Increment pipe_cycles 1 cycle for normal processing */
-	pipeline_cycles++;
-    /* 6. push stages thru MEM->WB, ALU->MEM, DECODE->ALU, FETCH->ALU */
-    
-    // 7. This is a give'me -- Reset the FETCH stage to NOP via bezero */
-    bzero(&(pipeline[FETCH]), sizeof(pipeline_t));
+  }
+
+  /* 5. Increment pipe_cycles 1 cycle for normal processing */
+  pipeline_cycles+=1;
+
+  /* 6. push stages thru MEM->WB, ALU->MEM, DECODE->ALU, FETCH->ALU */
+  memcpy(&pipeline[WRITEBACK], &pipeline[MEM], sizeof(pipeline_t));
+  memcpy(&pipeline[MEM], &pipeline[ALU], sizeof(pipeline_t));
+  memcpy(&pipeline[ALU], &pipeline[DECODE], sizeof(pipeline_t));
+  memcpy(&pipeline[DECODE], &pipeline[FETCH], sizeof(pipeline_t));
+
+  // 7. This is a give'me -- Reset the FETCH stage to NOP via bezero */
+  bzero(&(pipeline[FETCH]), sizeof(pipeline_t));
 }
 
 /*
@@ -615,7 +659,6 @@ int main()
     scanf("%s", trace_file_name);
     
     trace_file = fopen(trace_file_name, "r");
-    
     if ( trace_file == NULL ) {
         printf("fopen failed for %s file\n", trace_file_name);
         exit(-1);
@@ -633,8 +676,7 @@ int main()
         iplc_sim_parse_instruction(buffer);
         if (dump_pipeline)
             iplc_sim_dump_pipeline();
-    }
-    
+    }  
     iplc_sim_finalize();
     return 0;
 }
