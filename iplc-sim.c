@@ -175,7 +175,7 @@ void iplc_sim_init(int index, int blocksize, int assoc)
     // init the pipeline -- set all data to zero and instructions to NOP
     for (i = 0; i < MAX_STAGES; i++) {
         // itype is set to O which is NOP type instruction
-        bzero(&(pipeline[i]), sizeof(pipeline_t));
+        memset(&(pipeline[i]), 0, sizeof(pipeline_t));
     }
 }
 
@@ -218,13 +218,24 @@ void iplc_sim_LRU_update_on_hit(int index, int assoc_entry)
     for(i = 0; i < cache_assoc; i++){
         int j;
         for(j = set_begin; j < set_begin + cache_assoc; j++){
-            if((i - cache_assoc) == cache[j]){
+            if((i - cache_assoc) == cache[j].lru){
                 cache[j].lru--;
                 break;
             }
         }
     }
     cache[assoc_entry].lru = cache_assoc;
+}
+
+/*
+ * Utility function for masking address. Originally written for lab 9.
+ */
+
+int bit_twiddling(int val, int lsb, int msb)
+{
+    int mask = pow(2, (msb)) - 1;
+    mask = mask << lsb;
+    return (val & mask) >> lsb;
 }
 
 /*
@@ -244,13 +255,12 @@ int iplc_sim_trap_address(unsigned int address)
 	index = bit_twiddling(address, cache_blockoffsetbits+1, cache_index + cache_blockoffsetbits);
 	tag = bit_twiddling(address, cache_index+cache_blockoffsetbits+1, 32);
 
-	int i; 
-	for (i = cache_assoc * index; i < cache_assoc * index + assoc;i++) {
+	for (i = cache_assoc * index; i < cache_assoc * index + cache_assoc;i++) {
 		if (tag == cache[i].tag) {
 			hit = 1;
 		}
 	}
- 	if (hit = 1) {
+ 	if (hit == 1) {
 		iplc_sim_LRU_update_on_hit(index, i);
 	} else {
 		iplc_sim_LRU_replace_on_miss(index, tag);
@@ -402,7 +412,8 @@ void iplc_sim_push_pipeline_stage()
   memcpy(&pipeline[DECODE], &pipeline[FETCH], sizeof(pipeline_t));
 
   // 7. This is a give'me -- Reset the FETCH stage to NOP via bezero */
-  bzero(&(pipeline[FETCH]), sizeof(pipeline_t));
+  // note from tobi 12/5: changed to memset as bzero is deprecated and does not work on mingw
+  memset(&(pipeline[FETCH]), 0, sizeof(pipeline_t));
 }
 
 /*
