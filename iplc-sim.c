@@ -250,19 +250,22 @@ int iplc_sim_trap_address(unsigned int address)
     int tag=0;
     int hit=0;
     int blockoffset = 0;
+    cache_access++;
     // Call the appropriate function for a miss or hit
 	blockoffset = bit_twiddling(address, 0, cache_blockoffsetbits);
 	index = bit_twiddling(address, cache_blockoffsetbits+1, cache_index + cache_blockoffsetbits);
 	tag = bit_twiddling(address, cache_index+cache_blockoffsetbits+1, 32);
 
 	for (i = cache_assoc * index; i < cache_assoc * index + cache_assoc;i++) {
-		if (tag == cache[i].tag) {
+		if (tag == cache[i].tag && cache[i].valid) {
 			hit = 1;
 		}
 	}
  	if (hit == 1) {
+        cache_hit++;
 		iplc_sim_LRU_update_on_hit(index, i);
 	} else {
+        cache_miss++;
 		iplc_sim_LRU_replace_on_miss(index, tag);
 	}
     /* expects you to return 1 for hit, 0 for miss */
