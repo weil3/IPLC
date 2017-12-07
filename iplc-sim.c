@@ -227,16 +227,6 @@ void iplc_sim_LRU_update_on_hit(int index, int assoc_entry)
     cache[assoc_entry].lru = cache_assoc;
 }
 
-/*
- * Utility function for masking address. Originally written for lab 9.
- */
-
-int bit_twiddling(int val, int lsb, int msb)
-{
-    int mask = pow(2, (msb)) - 1;
-    mask = mask << lsb;
-    return (val & mask) >> lsb;
-}
 
 /*
  * Check if the address is in our cache.  Update our counter statistics 
@@ -252,10 +242,13 @@ int iplc_sim_trap_address(unsigned int address)
     int blockoffset = 0;
     cache_access++;
     // Call the appropriate function for a miss or hit
-	blockoffset = bit_twiddling(address, 0, cache_blockoffsetbits);
-	index = bit_twiddling(address, cache_blockoffsetbits+1, cache_index + cache_blockoffsetbits);
-	tag = bit_twiddling(address, cache_index+cache_blockoffsetbits+1, 32);
-
+    int mask = ( 1 << cache_index) -1;
+    //gets index
+    index = address >> cache_blcokoffsetbits & mask;
+    //gets tag
+    tag = address >> (cache_index + cache_blockoffsetbits);
+    
+    printf("Address %x: Tag = %x, Index= %d\n", address, tag, index);
 	for (i = cache_assoc * index; i < cache_assoc * index + cache_assoc;i++) {
 		if (tag == cache[i].tag && cache[i].valid) {
 			hit = 1;
