@@ -186,6 +186,7 @@ void iplc_sim_init(int index, int blocksize, int assoc)
  */
 void iplc_sim_LRU_replace_on_miss(int index, int tag, int counter)
 {
+    //checks to see if there are any open spots in the set
     int i;
     for(i = 0; i < cache_assoc; i++) {
         if(cache[index*cache_assoc + i].valid == 0) {
@@ -196,6 +197,7 @@ void iplc_sim_LRU_replace_on_miss(int index, int tag, int counter)
         }
     }
     
+    //if there are no empty spots in the set, look for the value that was least used
     long smallest = 100000;
     int replace = 0;
     for(i = 0; i < cache_assoc; i++){
@@ -204,6 +206,7 @@ void iplc_sim_LRU_replace_on_miss(int index, int tag, int counter)
             replace = i;
         }
     }
+    //replace the least used value in cache
     cache[index * cache_assoc + replace].tag = tag;
     cache[index *cache_assoc + replace].valid = 1;
     iplc_sim_LRU_update_on_hit(index, replace, counter);
@@ -215,6 +218,7 @@ void iplc_sim_LRU_replace_on_miss(int index, int tag, int counter)
  */
 void iplc_sim_LRU_update_on_hit(int index, int assoc_entry, int counter)
 {
+    //set the lru equal to counter so it can be used later to see which number in the set was the least used
     cache[index * cache_assoc +assoc_entry].lru = counter;
 }
 
@@ -235,11 +239,12 @@ int iplc_sim_trap_address(unsigned int address)
     counter++;
     // Call the appropriate function for a miss or hit
     int mask = (1 << cache_index) - 1;
-    index = address >> cache_blockoffsetbits & mask;
-    tag = address >> (cache_index + cache_blockoffsetbits);
+    index = address >> cache_blockoffsetbits & mask; // find index
+    tag = address >> (cache_index + cache_blockoffsetbits); //find address
     
     printf("Address %x: Tag= %x, Index= %d\n", address, tag, index);
     for (i = 0; i < cache_assoc; i++) {
+        // look to see if there is a hit in the cache set
         if ((tag == cache[index * cache_assoc+ i].tag) && (cache[index * cache_assoc + i].valid == 1)) {
             hit = 1;
             iplc_sim_LRU_update_on_hit(index,i, counter);
