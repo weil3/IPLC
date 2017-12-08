@@ -236,11 +236,12 @@ int iplc_sim_trap_address(unsigned int address)
     int hit=0;
     int blockoffset = 0;
     cache_access++;
+    //counter is used to keep track of when a value was inserted into the cache
     counter++;
     // Call the appropriate function for a miss or hit
     int mask = (1 << cache_index) - 1;
     index = address >> cache_blockoffsetbits & mask; // find index
-    tag = address >> (cache_index + cache_blockoffsetbits); //find address
+    tag = address >> (cache_index + cache_blockoffsetbits); //find tag
     
     printf("Address %x: Tag= %x, Index= %d\n", address, tag, index);
     for (i = 0; i < cache_assoc; i++) {
